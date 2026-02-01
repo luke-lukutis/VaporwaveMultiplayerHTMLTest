@@ -90,6 +90,9 @@ addEventListener("keydown",e=>keys[e.code]=true)
 addEventListener("keyup",e=>keys[e.code]=false)
 let velY=0,gravity=-0.04,jump=0.8,speed=0.22
 let yaw=0,pitch=0,rotating=false,dead=false,respawnTimer=0
+
+let avatarYaw=0
+
 let minZoom=2,maxZoom=50,currentZoom=10,targetZoom=10,shiftLock=false
 const sensitivity=0.003
 renderer.domElement.addEventListener("contextmenu",e=>e.preventDefault())
@@ -142,7 +145,10 @@ player.position.add(move)
 const targetRot=Math.atan2(move.x,move.z)
 let diff=(targetRot-player.rotation.y+Math.PI*3)%(Math.PI*2)-Math.PI
 player.rotation.y+=diff*0.2
+avatarYaw=player.rotation.y
 }
+if(shiftLock)avatarYaw=yaw
+
 velY+=gravity
 player.position.y+=velY
 let onGround=false
@@ -185,11 +191,17 @@ camera.lookAt(headPos)
 for(const b of blocks)attemptSpawn(b)
 if(player.position.y<-150&&!dead){dead=true;respawnTimer=5;player.visible=false}
 TWEEN.update()
-socket.emit("move",{x:player.position.x,y:player.position.y,z:player.position.z,yaw:yaw,pitch:pitch})
-for(const id in otherPlayers){
-const p=otherPlayers[id]
-if(!p)return
-}
+
+socket.emit("move",{
+x:player.position.x,
+y:player.position.y,
+z:player.position.z,
+yaw:avatarYaw,
+walk:isWalking,
+ground:onGround,
+t
+})
+
 }
 socket.on("allPlayers",data=>{
 for(const id in data){
@@ -203,6 +215,12 @@ else{
 const p=otherPlayers[id]
 p.position.set(pos.x,pos.y,pos.z)
 p.rotation.y=pos.yaw
+if(pos.walk&&pos.ground){
+p.userData.legL.rotation.x=Math.sin(pos.t)*0.3
+p.userData.legR.rotation.x=Math.sin(pos.t+Math.PI)*0.3
+p.userData.armL.rotation.x=Math.sin(pos.t+Math.PI)*0.25
+p.userData.armR.rotation.x=Math.sin(pos.t)*0.25
+}
 }})
 socket.on("playerLeft",id=>{
 if(otherPlayers[id]){scene.remove(otherPlayers[id]);delete otherPlayers[id]}})
